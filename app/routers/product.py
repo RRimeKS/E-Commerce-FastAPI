@@ -1,6 +1,6 @@
 import os
 import uuid
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Request
 from sqlalchemy.orm import Session
 from app.models.product import Product
 from app.models.category import Category
@@ -8,6 +8,7 @@ from app.models.user import User
 from app.database import get_db
 from app.schemas.product import ProductResponse, CreateProductRequest, CreateProductResponse, UpdateProductRequest
 from app.utils.dependencies import require_role
+from app.limiter import limiter
 
 UPLOAD_DIR = "static/images"
 ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"]
@@ -15,13 +16,15 @@ ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"]
 router = APIRouter(prefix="/product", tags=["Product"])
 
 @router.get("/all", response_model=list[ProductResponse])
-async def get_all_products(db: Session = Depends(get_db)):
+@limiter.limit("50/minute")
+async def get_all_products(request: Request, db: Session = Depends(get_db)):
     products = db.query(Product).all()
 
     return products
 
 @router.get("/{product_id}", response_model=ProductResponse)
-async def get_product_details(product_id: int, db: Session = Depends(get_db)):
+@limiter.limit("50/minute")
+async def get_product_details(request: Request, product_id: int, db: Session = Depends(get_db)):
     existing = db.query(Product).filter(Product.id == product_id).first()
     if not existing:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -29,7 +32,8 @@ async def get_product_details(product_id: int, db: Session = Depends(get_db)):
     return existing
 
 @router.post("/create", response_model=CreateProductResponse)
-async def create_product(product: CreateProductRequest, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin"))):
+@limiter.limit("25/minute")
+async def create_product(request: Request, product: CreateProductRequest, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin"))):
     category = db.query(Category).filter(Category.id == product.category_id).first()
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
@@ -49,7 +53,8 @@ async def create_product(product: CreateProductRequest, db: Session = Depends(ge
     return product_data
 
 @router.post("/{product_id}/upload-image", response_model=ProductResponse)
-async def upload_product_image(product_id: int, file: UploadFile = File(...), db: Session = Depends(get_db), current_user: User = Depends(require_role("admin"))):
+@limiter.limit("25/minute")
+async def upload_product_image(request: Request, product_id: int, file: UploadFile = File(...), db: Session = Depends(get_db), current_user: User = Depends(require_role("admin"))):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -80,7 +85,8 @@ async def upload_product_image(product_id: int, file: UploadFile = File(...), db
 
 
 @router.delete("/delete/{product_id}")
-async def delete_product(product_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin"))):
+@limiter.limit("25/minute")
+async def delete_product(request: Request, product_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin"))):
     existing_product = db.query(Product).filter(Product.id == product_id).first()
     
     if not existing_product:
@@ -92,7 +98,8 @@ async def delete_product(product_id: int, db: Session = Depends(get_db), current
     return {"message": "Product deleted successfully"}
 
 @router.put("/update/{product_id}", response_model=ProductResponse)
-async def update_product(product_id: int, product: UpdateProductRequest, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin"))):
+@limiter.limit("25/minute")
+async def update_product(request: Request, product_id: int, product: UpdateProductRequest, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin"))):
     product_query = db.query(Product).filter(Product.id == product_id)
     existingProduct = product_query.first()
 

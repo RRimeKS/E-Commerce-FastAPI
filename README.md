@@ -8,7 +8,7 @@ Full-stack e-ticaret platformu. **FastAPI** backend, **React 18** frontend, **Re
 
 | Katman | Teknolojiler |
 |--------|-------------|
-| **Backend** | FastAPI, SQLAlchemy 2.x, MySQL, Pydantic v2, JWT (HttpOnly Cookie), bcrypt |
+| **Backend** | FastAPI, SQLAlchemy 2.x, MySQL, Pydantic v2, JWT (HttpOnly Cookie), bcrypt, slowapi (rate limiting) |
 | **Frontend** | React 18, Redux Toolkit (RTK Query), React Router v6, Tailwind CSS v4, shadcn/ui, Vite |
 | **Altyapı** | Python 3.11+, Node.js 18+, MySQL 8.0+ |
 
@@ -29,6 +29,13 @@ Full-stack e-ticaret platformu. **FastAPI** backend, **React 18** frontend, **Re
 - Sayfa yenilendiğinde oturum korunur (`GET /auth/me`)
 - Rol tabanlı erişim kontrolü (admin / user)
 
+### Güvenlik & Rate Limiting
+- IP bazlı rate limiting (slowapi) tüm endpoint'lerde
+- Okuma endpoint'leri: 50 istek/dakika
+- Yazma endpoint'leri: 25 istek/dakika
+- Auth endpoint'leri (login/register): 5 istek/dakika (brute-force koruması)
+- Global exception handling (validation, integrity, genel hatalar)
+
 ### Admin Paneli
 - Kontrol paneli (ürün, kategori, sipariş, gelir istatistikleri)
 - Ürün CRUD (görsel yükleme desteği)
@@ -45,6 +52,7 @@ e-commerce-fastapi/
 │   ├── main.py                       # Uygulama, CORS, lifespan
 │   ├── config.py                     # Ortam değişkenleri (pydantic-settings)
 │   ├── database.py                   # SQLAlchemy engine & session
+│   ├── limiter.py                    # Rate limiting (slowapi)
 │   ├── exception_handlers.py         # Global hata yakalama
 │   ├── logging_config.py             # Loglama ayarları
 │   ├── models/                       # SQLAlchemy ORM modelleri

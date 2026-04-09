@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from sqlalchemy.orm import Session
 from app.models.order import Order
 from app.models.order_item import OrderItem
@@ -7,27 +7,32 @@ from app.models.user import User
 from app.database import get_db
 from app.schemas.order import CreateOrderRequest, OrderResponse
 from app.utils.dependencies import require_role, isAuthentication
+from app.limiter import limiter
 
 router = APIRouter(prefix="/order", tags=["Order"])
 @router.get("/all", response_model=list[OrderResponse])
-async def get_all_orders(db: Session = Depends(get_db), current_user: User = Depends(require_role("admin"))):
+@limiter.limit("25/minute")
+async def get_all_orders(request: Request, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin"))):
     orders = db.query(Order).all()
     return orders
 
 @router.get("/detail/{order_id}", response_model=OrderResponse)
-async def get_order_by_id(order_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin"))):
+@limiter.limit("25/minute")
+async def get_order_by_id(request: Request, order_id: int, db: Session = Depends(get_db), current_user: User = Depends(require_role("admin"))):
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
     return order
 
 @router.get("/my-orders", response_model=list[OrderResponse])
-async def get_orders_by_user_id(db: Session = Depends(get_db), current_user: User = Depends(isAuthentication)):
+@limiter.limit("25/minute")
+async def get_orders_by_user_id(request: Request, db: Session = Depends(get_db), current_user: User = Depends(isAuthentication)):
     orders = db.query(Order).filter(Order.user_id == current_user.id).all()
     return orders
 
 @router.post("/create", response_model=OrderResponse)
-async def create_order(order_data: CreateOrderRequest, db: Session = Depends(get_db), current_user: User = Depends(isAuthentication)):
+@limiter.limit("25/minute")
+async def create_order(request: Request, order_data: CreateOrderRequest, db: Session = Depends(get_db), current_user: User = Depends(isAuthentication)):
     total_price = 0.0
     order_items = []
 

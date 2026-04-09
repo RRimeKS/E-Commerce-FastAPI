@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.database import get_db
@@ -9,9 +9,9 @@ from app.models.order_item import OrderItem
 from app.models.user import User
 from app.schemas.review import ReviewRequest, ReviewResponse
 from app.utils.dependencies import isAuthentication
+from app.limiter import limiter
 
 router = APIRouter(prefix="/review", tags=["Reviews"])
-
 
 def update_product_rating(db: Session, product_id: int):
     result = db.query(
@@ -23,9 +23,9 @@ def update_product_rating(db: Session, product_id: int):
     product.review_count = result[0]
     product.average_rating = round(float(result[1]), 1)
 
-
 @router.get("/product/{product_id}", response_model=list[ReviewResponse])
-async def get_product_reviews(product_id: int, db: Session = Depends(get_db)):
+@limiter.limit("50/minute")
+async def get_product_reviews(request: Request, product_id: int, db: Session = Depends(get_db)):
     reviews = (
         db.query(Review)
         .filter(Review.product_id == product_id)
@@ -36,7 +36,9 @@ async def get_product_reviews(product_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/product/{product_id}", response_model=ReviewResponse, status_code=201)
+@limiter.limit("25/minute")
 async def create_review(
+    request: Request,
     product_id: int,
     data: ReviewRequest,
     db: Session = Depends(get_db),
@@ -82,7 +84,9 @@ async def create_review(
 
 
 @router.delete("/product/{product_id}", status_code=204)
+@limiter.limit("25/minute")
 async def delete_review(
+    request: Request,
     product_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(isAuthentication),

@@ -4,7 +4,10 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import Base, engine
 from app.logging_config import setup_logging, logging
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from app.exception_handlers import register_exception_handlers
+from app.limiter import limiter
 from app.models.product import Product
 from app.models.category import Category
 from app.models.user import User
@@ -37,6 +40,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 register_exception_handlers(app)
 
 @app.middleware("http")
