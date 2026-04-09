@@ -50,12 +50,12 @@ async def login(request: Request, user: UserLogin, response: Response, db: Sessi
         key="access_token",
         value=token,
         httponly=True,
-        secure=False,
+        secure=settings.COOKIE_SECURE,
         samesite="lax",
         max_age=settings.JWT_EXPIRE_MINUTES * 60,
     )
 
-    return {"message": "Login successful", "token": token}
+    return {"message": "Login successful"}
 
 @router.get("/me", response_model=UserResponse)
 @limiter.limit("50/minute")

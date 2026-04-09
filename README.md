@@ -10,7 +10,7 @@ Full-stack e-ticaret platformu. **FastAPI** backend, **React 18** frontend, **Re
 |--------|-------------|
 | **Backend** | FastAPI, SQLAlchemy 2.x, MySQL, Pydantic v2, JWT (HttpOnly Cookie), bcrypt, slowapi (rate limiting) |
 | **Frontend** | React 18, Redux Toolkit (RTK Query), React Router v6, Tailwind CSS v4, shadcn/ui, Vite |
-| **Altyapı** | Python 3.11+, Node.js 18+, MySQL 8.0+ |
+| **Altyapı** | Python 3.11+, Node.js 22+, MySQL 8.0+, Docker & Docker Compose |
 
 ## Özellikler
 
@@ -77,8 +77,13 @@ e-commerce-fastapi/
 │   └── utils/
 │       ├── security.py               # JWT & bcrypt işlemleri
 │       └── dependencies.py           # Auth middleware (cookie tabanlı)
+├── Dockerfile                        # Backend Docker image
+├── docker-compose.yml                # Multi-container orchestration
+├── requirements.txt                  # Python bağımlılıkları
 ├── static/images/                    # Yüklenen ürün görselleri
 ├── frontend/                         # Frontend (React)
+│   ├── Dockerfile                    # Frontend multi-stage build
+│   ├── nginx.conf                    # SPA routing için Nginx ayarı
 │   └── src/
 │       ├── app/                      # Redux store & RTK Query base API
 │       ├── features/
@@ -95,58 +100,103 @@ e-commerce-fastapi/
 
 ## Kurulum
 
-### Gereksinimler
+### Docker ile (Önerilen)
 
-- Python 3.11+
-- Node.js 18+
-- MySQL 8.0+
+Tek komutla tüm uygulamayı ayağa kaldırın — MySQL, Backend ve Frontend otomatik yapılandırılır.
 
-### 1. Repoyu klonlayın
+**Gereksinimler:** Docker ve Docker Compose
+
+```bash
+git clone https://github.com/KULLANICI_ADINIZ/e-commerce-fastapi.git
+cd e-commerce-fastapi
+docker compose up --build
+```
+
+| Servis | Adres | Açıklama |
+|--------|-------|----------|
+| **Frontend** | `http://localhost` | React uygulaması (Nginx) |
+| **Backend** | `http://localhost:8000` | FastAPI |
+| **API Docs** | `http://localhost:8000/docs` | Swagger UI |
+| **MySQL** | `localhost:3307` | Dış erişim portu (isteğe bağlı) |
+
+```bash
+# Arka planda çalıştır
+docker compose up -d
+
+# Logları izle
+docker compose logs -f backend
+
+# Durdur
+docker compose down
+
+# Durdur + veritabanını sıfırla
+docker compose down -v
+```
+
+#### Docker Mimarisi
+
+```
+docker-compose.yml
+├── db        → MySQL 8.0 (healthcheck ile hazırlık kontrolü)
+├── backend   → Python 3.11-slim + FastAPI (db hazır olunca başlar)
+└── frontend  → Node 22 build → Nginx alpine (multi-stage, ~30MB)
+```
+
+- MySQL verisi ve yüklenen görseller **named volume** ile kalıcıdır
+- Container'lar Docker network üzerinden haberleşir (`backend → db:3306`)
+- Frontend production build'i Nginx ile sunulur (SPA routing dahil)
+
+---
+
+### Manuel Kurulum
+
+Docker kullanmadan kurmak isterseniz:
+
+**Gereksinimler:** Python 3.11+, Node.js 22+, MySQL 8.0+
+
+#### 1. Repoyu klonlayın
 
 ```bash
 git clone https://github.com/KULLANICI_ADINIZ/e-commerce-fastapi.git
 cd e-commerce-fastapi
 ```
 
-### 2. Backend kurulumu
+#### 2. Backend kurulumu
 
 ```bash
-# Sanal ortam oluşturun ve aktif edin
 python -m venv myenv
 source myenv/Scripts/activate  # Windows
 # source myenv/bin/activate    # macOS/Linux
 
-# Bağımlılıkları yükleyin
-pip install fastapi uvicorn sqlalchemy pymysql pydantic pydantic-settings \
-  python-dotenv bcrypt python-jose[cryptography] python-multipart
+pip install -r requirements.txt
 ```
 
 `.env` dosyasını proje kök dizininde oluşturun:
 
 ```env
-DB_URI=mysql+pymysql://root:SIFRENIZ@localhost:3306/VERITABANI_ADI
+DB_URI=mysql+pymysql://root:SIFRENIZ@localhost:3306/e_commerce
 JWT_SECRET_KEY=güçlü-bir-secret-key-buraya
 JWT_ALGORITHM=HS256
 JWT_EXPIRE_MINUTES=30
 ```
 
-### 3. Veritabanını oluşturun
+#### 3. Veritabanını oluşturun
 
 ```sql
 CREATE DATABASE e_commerce;
 ```
 
-Uygulama ilk çalıştığında tablolar otomatik oluşturulur. Hazır veri için `docs/` klasöründeki SQL dump'ını kullanabilirsiniz.
+Uygulama ilk çalıştığında tablolar otomatik oluşturulur.
 
-### 4. Backend'i başlatın
+#### 4. Backend'i başlatın
 
 ```bash
 uvicorn app.main:app --reload
 ```
 
-> Backend: `http://localhost:8000` | API Dokümantasyonu: `http://localhost:8000/docs`
+> Backend: `http://localhost:8000` | API Docs: `http://localhost:8000/docs`
 
-### 5. Frontend kurulumu
+#### 5. Frontend kurulumu
 
 ```bash
 cd frontend
@@ -159,7 +209,7 @@ npm install
 VITE_API_URL=http://localhost:8000
 ```
 
-### 6. Frontend'i başlatın
+#### 6. Frontend'i başlatın
 
 ```bash
 npm run dev

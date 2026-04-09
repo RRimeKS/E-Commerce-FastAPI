@@ -32,12 +32,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="FastAPI E-Commerce API", description="A simple e-commerce API built with FastAPI", version="1.0.0", lifespan=lifespan)
 
+from app.config import settings as app_settings
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=[o.strip() for o in app_settings.ALLOWED_ORIGINS.split(",")],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 app.state.limiter = limiter
@@ -66,3 +68,7 @@ app.include_router(review_router.router)
 @app.get("/")
 def root():
     return {"message": "Products API is running"}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
